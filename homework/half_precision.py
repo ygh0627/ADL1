@@ -18,37 +18,55 @@ class HalfLinear(torch.nn.Linear):
         Feel free to set self.requires_grad_ to False, we will not backpropagate through this layer.
         """
         # TODO: Implement me
-        raise NotImplementedError()
+        super().__init__(in_features, out_features, bias)
+        
+        # 2. 그 다음 파라미터를 half precision으로 변환합니다.
+        self.half()
+        self.weight.requires_grad = False
+        if self.bias is not None:
+          self.bias.requires_grad = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Hint: Use the .to method to cast a tensor to a different dtype (i.e. torch.float16 or x.dtype)
         # The input and output should be of x.dtype = torch.float32
         # TODO: Implement me
-        raise NotImplementedError()
+        return torch.nn.functional.linear(x.half(),self.weight,self.bias).to(x.dtype)
 
 
 class HalfBigNet(torch.nn.Module):
-    """
-    A BigNet where all weights are in half precision. Make sure that the normalization uses full
-    precision though to avoid numerical instability.
-    """
-
     class Block(torch.nn.Module):
         def __init__(self, channels: int):
             super().__init__()
-            # TODO: Implement me (feel free to copy and reuse code from bignet.py)
-            raise NotImplementedError()
+
+            self.model = torch.nn.Sequential(
+                HalfLinear(channels, channels),
+                torch.nn.ReLU(),
+                HalfLinear(channels, channels),
+                torch.nn.ReLU(),
+                HalfLinear(channels, channels),
+            )
 
         def forward(self, x: torch.Tensor):
             return self.model(x) + x
 
     def __init__(self):
         super().__init__()
-        # TODO: Implement me (feel free to copy and reuse code from bignet.py)
-        raise NotImplementedError()
-
+        
+        self.model = torch.nn.Sequential(
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+            LayerNorm(BIGNET_DIM),
+            self.Block(BIGNET_DIM),
+        )
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+      return self.model(x)
 
 
 def load(path: Path | None) -> HalfBigNet:
